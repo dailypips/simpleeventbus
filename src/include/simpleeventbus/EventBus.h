@@ -7,8 +7,16 @@
 
 class IEventBusEvent;
 
+/**
+ * @brief The handler will get notified for every published IEventBusEvent that it is registered for.
+ */
 template<class T>
 class IEventBusHandler {
+private:
+	friend class EventBus;
+	void dispatch(const IEventBusEvent& e) {
+		onEvent(reinterpret_cast<const T &>(e));
+	}
 public:
 	IEventBusHandler() {
 		static_assert(std::is_base_of<IEventBusEvent, T>::value, "Wrong type given");
@@ -18,24 +26,33 @@ public:
 	}
 
 	virtual void onEvent(const T&) = 0;
-
-	void dispatch(const IEventBusEvent& e) {
-		onEvent(reinterpret_cast<const T &>(e));
-	}
 };
 
+/**
+ * @brief With a topic you can filter you handler. See the EventBus::subscribe for more details.
+ */
 class IEventBusTopic {
+protected:
+	const std::type_index _index;
+
+	IEventBusTopic() :
+			_index(typeid(*this)) {
+	}
 public:
 	virtual ~IEventBusTopic() {
+	}
+
+	inline bool operator==(const IEventBusTopic& other) const {
+		return _index == other._index;
 	}
 };
 
 class IEventBusEvent {
-private:
-	const IEventBusTopic* _topic;
+protected:
+	const IEventBusTopic *_topic;
 
 public:
-	IEventBusEvent(const IEventBusTopic* const topic) :
+	IEventBusEvent(const IEventBusTopic* const topic = nullptr) :
 			_topic(topic) {
 	}
 
@@ -58,10 +75,10 @@ private:
 	class EventBusHandlerReference {
 	private:
 		void* const _handler;
-		const IEventBusTopic* const _topic;
+		const IEventBusTopic *_topic;
 
 	public:
-		EventBusHandlerReference(void* handler, const IEventBusTopic* const topic) :
+		EventBusHandlerReference(void* handler, const IEventBusTopic* topic) :
 				_handler(handler), _topic(topic) {
 		}
 
@@ -69,7 +86,7 @@ private:
 			return static_cast<IEventBusHandler<IEventBusEvent>*>(_handler);
 		}
 
-		inline const void* getTopic() const {
+		inline const IEventBusTopic* getTopic() const {
 			return _topic;
 		}
 	};
@@ -78,7 +95,7 @@ private:
 
 public:
 	template<class T>
-	void subscribe(IEventBusHandler<T>& handler, IEventBusTopic* topic) {
+	void subscribe(IEventBusHandler<T>& handler, const IEventBusTopic* topic = nullptr) {
 		const std::type_index& index = typeid(T);
 		EventBusHandlerReferences& handlers = _handlers[index];
 		const EventBusHandlerReference registration(&handler, topic);
@@ -86,12 +103,7 @@ public:
 	}
 
 	template<class T>
-	void subscribe(IEventBusHandler<T>& handler) {
-		subscribe(handler, nullptr);
-	}
-
-	template<class T>
-	int unsubscribe(IEventBusHandler<T>& handler, IEventBusTopic* topic) {
+	int unsubscribe(IEventBusHandler<T>& handler, const IEventBusTopic* topic = nullptr) {
 		int unsubscribedHandlers = 0;
 		const std::type_index& index = typeid(T);
 		EventBusHandlerReferences& handlers = _handlers[index];
@@ -101,19 +113,16 @@ public:
 				++i;
 				continue;
 			}
-			if (topic != nullptr && r.getTopic() != topic) {
-				++i;
-				continue;
+			if (topic != nullptr && r.getTopic() != nullptr) {
+				if (!(*r.getTopic() == *topic)) {
+					++i;
+					continue;
+				}
 			}
 			i = handlers.erase(i);
 			++unsubscribedHandlers;
 		}
 		return unsubscribedHandlers;
-	}
-
-	template<class T>
-	int unsubscribe(IEventBusHandler<T>& handler) {
-		return unsubscribe(handler, nullptr);
 	}
 
 	int publish(const IEventBusEvent& e) {
@@ -125,8 +134,13 @@ public:
 		int notifiedHandlers = 0;
 		EventBusHandlerReferences& handlers = i->second;
 		for (auto& r : handlers) {
-			if (r.getTopic() != nullptr && r.getTopic() != e.getTopic())
-				continue;
+			if (r.getTopic() != nullptr) {
+				const IEventBusTopic* topic = e.getTopic();
+				if (topic == nullptr)
+					continue;
+				if (!(*r.getTopic() == *topic))
+					continue;
+			}
 			IEventBusHandler<IEventBusEvent>* handler = r.getHandler();
 			handler->dispatch(e);
 			++notifiedHandlers;

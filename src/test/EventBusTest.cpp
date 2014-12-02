@@ -3,19 +3,23 @@
 
 EVENTBUSEVENT(TestEvent);
 
-class HandlerTest: public IEventBusHandler<TestEvent> {
+template<class T>
+class CountHandlerTest: public IEventBusHandler<T> {
 private:
 	int _count;
 public:
-	HandlerTest() : _count(0) {}
+	CountHandlerTest() : _count(0) {}
 
-	void onEvent(const TestEvent&) override {
+	void onEvent(const T&) override {
 		++_count;
 	}
 
 	inline int getCount() const {
 		return _count;
 	}
+};
+
+class HandlerTest: public CountHandlerTest<TestEvent> {
 };
 
 TEST(EventBusTest, testSubscribeAndPublish_1) {
@@ -75,4 +79,34 @@ TEST(EventBusTest, testMassPublish_10000000) {
 	ASSERT_EQ(1, eventBus.unsubscribe(handler));
 	ASSERT_EQ(0, eventBus.publish(event)) << "Expected no handler to be notified";
 	ASSERT_EQ(n, handler.getCount()) << "Expected the handler not to be notified again because we unsubscribed it before we published the event";
+}
+
+#define TOPIC(topic) \
+class topic: public IEventBusTopic {}; \
+topic __##topic
+
+#define EVENT(event, topic) \
+class event: public IEventBusEvent { public: event(topic _##topic) : IEventBusEvent(&_##topic) {} event() : IEventBusEvent(nullptr) {}  }
+
+#define EVENTTOPIC(event, topic) \
+TOPIC(topic); \
+EVENT(event, topic);
+
+#define EVENTTOPICHANDLER(event, topic, handler) \
+EVENTTOPIC(event, topic); \
+class handler: public CountHandlerTest<event> {}
+
+TEST(EventBusTest, testTopic_1) {
+	EVENTTOPICHANDLER(Topic1Event, Topic1, Topic1EventHandler);
+	EventBus eventBus;
+	Topic1EventHandler handler;
+	Topic1Event event(__Topic1);
+
+	eventBus.subscribe(handler, &__Topic1);
+	ASSERT_EQ(1, eventBus.publish(event)) << "Unexpected amount of handlers notified - topic filtering isn't working";
+	ASSERT_EQ(1, handler.getCount()) << "Unexpected handler notification amount";
+
+	Topic1Event noTopicEvent;
+	ASSERT_EQ(0, eventBus.publish(noTopicEvent)) << "Unexpected amount of handlers notified - topic filtering isn't working";
+	ASSERT_EQ(1, handler.getCount()) << "Unexpected handler notification amount";
 }
