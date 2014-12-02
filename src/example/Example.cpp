@@ -20,6 +20,10 @@ public:
 	}
 };
 
+/**
+ * @brief Simple example of the EventBus usage. Also make sure to check
+ * out the included unittests to get more examples.
+ */
 int main(const int argc, char *argv[]) {
 	(void)argc;
 	(void)argv;
