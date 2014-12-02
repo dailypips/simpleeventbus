@@ -29,7 +29,8 @@ public:
 };
 
 /**
- * @brief With a topic you can filter you handler. See the EventBus::subscribe for more details.
+ * @brief With a topic you can filter your event dispatching to those IEventBusHandler instances that were subscribed with the same topic.
+ * @see EventBus::subscribe for more details.
  */
 class IEventBusTopic {
 protected:
@@ -47,23 +48,30 @@ public:
 	}
 };
 
+/**
+ * @brief Base class for all the events that EventBus::publish is publishing
+ */
 class IEventBusEvent {
 protected:
 	const IEventBusTopic *_topic;
 
-public:
 	IEventBusEvent(const IEventBusTopic* const topic = nullptr) :
 			_topic(topic) {
 	}
-
-	virtual ~IEventBusEvent() {
-	}
-
+private:
+	friend class EventBus;
 	inline const IEventBusTopic* getTopic() const {
 		return _topic;
 	}
+public:
+
+	virtual ~IEventBusEvent() {
+	}
 };
 
+/**
+ * @brief Generates a new default event without a topic and any state attached
+ */
 #define EVENTBUSEVENT(name) class name: public IEventBusEvent { public: name() : IEventBusEvent(nullptr) { } }
 
 class EventBus {
@@ -94,6 +102,12 @@ private:
 	EventBusHandlerReferenceMap _handlers;
 
 public:
+	/**
+	 * @brief Subscribe a handler with the ability to filter by the given IEventBusTopic
+	 * @param[in,out] handler The IEventBusHandler to subscribe
+	 * @param[in] topic The specific topic to subscribe the IEventBusHandler for. If this is @c nullptr
+	 * the handler is notified no matter which IEventBusTopic the IEventBusEvent is published with.
+	 */
 	template<class T>
 	void subscribe(IEventBusHandler<T>& handler, const IEventBusTopic* topic = nullptr) {
 		const std::type_index& index = typeid(T);
@@ -102,6 +116,13 @@ public:
 		handlers.push_back(registration);
 	}
 
+	/**
+	 * @brief Unsubscribe the given handler for the specified topic
+	 * @param[in,out] handler The IEventBusHandler to unsubscribe
+	 * @param[in] topic The specific topic to unsubscribe the IEventBusHandler for. If this is
+	 * @c nullptr the given handler is unsubscribed no matter which topic it was subscribed with.
+	 * @return The amount of unsubscribed IEventBusHandler instances
+	 */
 	template<class T>
 	int unsubscribe(IEventBusHandler<T>& handler, const IEventBusTopic* topic = nullptr) {
 		int unsubscribedHandlers = 0;
@@ -125,6 +146,14 @@ public:
 		return unsubscribedHandlers;
 	}
 
+	/**
+	 * @brief Publishes the given IEventBusEvent and notifies the IEventBusHandler
+	 * @param[in] e The event that should be published
+	 * @note Only those IEventBusHandler are notified that have registered with the same topic
+	 * that the event is publishing with (or if the handler was not registered with a topic at
+	 * all).
+	 * @return The amount of notified IEventBusHandler instances
+	 */
 	int publish(const IEventBusEvent& e) {
 		const std::type_index& index = typeid(e);
 		EventBusHandlerReferenceMap::iterator i = _handlers.find(index);
