@@ -33,4 +33,6 @@ if (PKG_CONFIG_FOUND)
 	install(FILES ${SIMPLEEVENTBUS_BINARY_DIR}/libsimpleeventbus.pc DESTINATION "lib${LIB_SUFFIX}/pkgconfig")
 endif()
 
+install(FILES ${SIMPLEEVENTBUS_SOURCE_DIR}/src/include/simpleeventbus/EventBus.h DESTINATION include/simpleeventbus)
+
 # TODO execute doxygen
