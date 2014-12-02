@@ -36,3 +36,4 @@ src/example/example
 src/test/tests
 .project
 .cproject
+install_manifest.txt
