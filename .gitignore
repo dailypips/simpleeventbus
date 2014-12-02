@@ -34,3 +34,5 @@ Makefile
 CMakeCache.txt
 src/example/example
 src/test/tests
+.project
+.cproject
