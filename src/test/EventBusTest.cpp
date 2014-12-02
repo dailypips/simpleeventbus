@@ -110,3 +110,20 @@ TEST(EventBusTest, testTopic_1) {
 	ASSERT_EQ(0, eventBus.publish(noTopicEvent)) << "Unexpected amount of handlers notified - topic filtering isn't working";
 	ASSERT_EQ(1, handler.getCount()) << "Unexpected handler notification amount";
 }
+
+TEST(EventBusTest, testMultipleTopics_1) {
+	EVENTTOPICHANDLER(Topic1Event, Topic1, Topic1EventHandler);
+	EventBus eventBus;
+	Topic1EventHandler handler;
+	Topic1Event event(__Topic1);
+
+	eventBus.subscribe(handler, &__Topic1);
+	eventBus.subscribe(handler);
+	ASSERT_EQ(2, eventBus.publish(event)) << "Unexpected amount of handlers notified - topic filtering isn't working";
+	ASSERT_EQ(2, handler.getCount()) << "Unexpected handler notification amount";
+
+	eventBus.unsubscribe(handler, &__Topic1);
+	Topic1Event noTopicEvent;
+	ASSERT_EQ(1, eventBus.publish(noTopicEvent)) << "Unexpected amount of handlers notified - topic filtering isn't working";
+	ASSERT_EQ(3, handler.getCount()) << "Unexpected handler notification amount";
+}
