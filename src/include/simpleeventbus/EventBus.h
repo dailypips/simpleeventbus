@@ -134,7 +134,11 @@ public:
 				++i;
 				continue;
 			}
-			if (topic != nullptr && r.getTopic() != nullptr) {
+			if (topic != nullptr) {
+				if (r.getTopic() == nullptr) {
+					++i;
+					continue;
+				}
 				if (!(*r.getTopic() == *topic)) {
 					++i;
 					continue;
