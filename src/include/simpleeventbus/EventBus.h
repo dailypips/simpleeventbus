@@ -91,22 +91,29 @@ public:
 	}
 
 	template<class T>
-	void unsubscribe(IEventBusHandler<T>& handler, IEventBusTopic* topic) {
+	int unsubscribe(IEventBusHandler<T>& handler, IEventBusTopic* topic) {
+		int unsubscribedHandlers = 0;
 		const std::type_index& index = typeid(T);
 		EventBusHandlerReferences& handlers = _handlers[index];
-		for (EventBusHandlerReferences::iterator i = handlers.begin(); i != handlers.end(); ++i) {
+		for (EventBusHandlerReferences::iterator i = handlers.begin(); i != handlers.end();) {
 			EventBusHandlerReference& r = *i;
-			if (r.getHandler() != reinterpret_cast<IEventBusHandler<IEventBusEvent>*>(&handler))
+			if (r.getHandler() != reinterpret_cast<IEventBusHandler<IEventBusEvent>*>(&handler)) {
+				++i;
 				continue;
-			if (topic != nullptr && r.getTopic() != topic)
+			}
+			if (topic != nullptr && r.getTopic() != topic) {
+				++i;
 				continue;
+			}
 			i = handlers.erase(i);
+			++unsubscribedHandlers;
 		}
+		return unsubscribedHandlers;
 	}
 
 	template<class T>
-	void unsubscribe(IEventBusHandler<T>& handler) {
-		unsubscribe(handler, nullptr);
+	int unsubscribe(IEventBusHandler<T>& handler) {
+		return unsubscribe(handler, nullptr);
 	}
 
 	int publish(const IEventBusEvent& e) {
