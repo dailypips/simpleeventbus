@@ -42,7 +42,7 @@ public:
 	virtual ~IEventBusEvent() {
 	}
 
-	inline const void* getTopic() const {
+	inline const IEventBusTopic* getTopic() const {
 		return _topic;
 	}
 };
